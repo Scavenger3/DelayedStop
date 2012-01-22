@@ -1,0 +1,7 @@
+C:\Users\42373\Documents\Programming\TShock Plugins\DelayedStop\Bin\Debug\PluginTemplate\DelayedStop.dll
+C:\Users\42373\Documents\Programming\TShock Plugins\DelayedStop\Bin\Debug\PluginTemplate\DelayedStop.pdb
+C:\Users\42373\Documents\Programming\TShock Plugins\DelayedStop\DelayedStop\obj\Debug\ResolveAssemblyReference.cache
+C:\Users\42373\Documents\Programming\TShock Plugins\DelayedStop\DelayedStop\obj\Debug\DelayedStop.dll
+C:\Users\42373\Documents\Programming\TShock Plugins\DelayedStop\DelayedStop\obj\Debug\DelayedStop.pdb
+C:\Users\42373\Documents\Programming\TShock Plugins\DelayedStop\Compiled\DelayedStop.dll
+C:\Users\42373\Documents\Programming\TShock Plugins\DelayedStop\Compiled\DelayedStop.pdb
