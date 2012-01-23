@@ -10,7 +10,7 @@ using System.ComponentModel;
 using System.IO;
 using Newtonsoft.Json;
 using Config;
-using System.Threading;
+using System.Timers;
 
 namespace DelayedStop
 {
@@ -24,8 +24,9 @@ namespace DelayedStop
         public static bool noconferr = true;
         public static string shutdownreason = "";
         public static int timeleft = 0;
-        public static DateTime CountDown = DateTime.UtcNow;
         public static CommandArgs whostarted;
+        public static Timer ds = new Timer(1000);
+
         public override string Name
         {
             get { return "Delayed Stop"; }
@@ -43,24 +44,18 @@ namespace DelayedStop
 
         public override Version Version
         {
-            get { return new Version("1.2.1"); }
+            get { return new Version("1.2.2"); }
         }
 
         public override void Initialize()
         {
-            GameHooks.Update += OnUpdate;
             GameHooks.Initialize += OnInitialize;
-            ServerHooks.Leave += OnLeave;
         }
 
         protected override void Dispose(bool disposing)
         {
             if (disposing)
-            {
-                GameHooks.Update -= OnUpdate;
                 GameHooks.Initialize -= OnInitialize;
-                ServerHooks.Leave -= OnLeave;
-            }
             base.Dispose(disposing);
         }
 
@@ -69,6 +64,7 @@ namespace DelayedStop
         {
             getConfig = new dsConfig();
         }
+        
 
         #region Config
 
@@ -174,17 +170,11 @@ namespace DelayedStop
                 else
                 {
                     if (Minutes > 1 && Seconds > 1)
-                    {
                         return Minutes + " Minutes and " + Seconds + " Seconds";
-                    }
                     else if (Minutes == 1 && Seconds > 1)
-                    {
                         return Minutes + " Minute and " + Seconds + " Seconds";
-                    }
                     else
-                    {
                         return Minutes + " Minute and " + Seconds + " Second";
-                    }
                 }
             }
         }
@@ -202,8 +192,45 @@ namespace DelayedStop
 
             t = t.Replace("@time-left@", dispTimeLeft());
             return t;
+
         }
         #endregion get message
+
+        #region timer elapse
+        static void ds_Elapsed(object sender, ElapsedEventArgs e)
+        {
+            if (!shutdowninprogress)
+                ds.Stop();
+            else if (shutdowninprogress && !shutdownpaused && noconferr)
+            {
+                char[] toremove = { 's', 'm' };
+                string[] strNotifiers = getConfig.NotifyAt.Split(',');
+                foreach (string timeint in strNotifiers)
+                {
+                    int numsecs = 0;
+                    string[] mands = timeint.Split('m');
+                    bool notifiersnos = int.TryParse(timeint, out numsecs);
+
+                    if (timeint.Contains("s") && !timeint.Contains("m"))
+                        numsecs = int.Parse(timeint.TrimEnd(toremove));
+                    else if (timeint.Contains("m") && !timeint.Contains("s"))
+                        numsecs = int.Parse(timeint.TrimEnd(toremove)) * 60;
+                    else if (timeint.Contains("m") && timeint.Contains("s"))
+                        numsecs = int.Parse(mands[1].TrimEnd(toremove)) + (int.Parse(mands[0].TrimEnd(toremove)) * 60);
+
+                    if (timeleft == numsecs)
+                        TShock.Utils.Broadcast(getConfig.ChatPrefix + " " + getmessage() + shutdownreason, getConfig.ColorR, getConfig.ColorG, getConfig.ColorB);
+                }
+                timeleft--;
+                if (timeleft == 0)
+                {
+                    TShock.Utils.ForceKickAll(getConfig.Shutdown_Message + shutdownreason);
+                    WorldGen.saveWorld();
+                    Netplay.disconnect = true;
+                }
+            }
+        }
+        #endregion
 
         public void OnInitialize()
         {
@@ -212,84 +239,12 @@ namespace DelayedStop
             Commands.ChatCommands.Add(new Command("dsinfo", dinfo, "dinfo"));
         }
 
-        public void OnUpdate()
-        {
-            if (shutdowninprogress && !shutdownpaused && noconferr)
-            {
-                double tick = (DateTime.UtcNow - CountDown).TotalMilliseconds;
-                if (tick > 1000)
-                {
-
-                    char[] toremove = { 's', 'm' };
-                    string[] strNotifiers = getConfig.NotifyAt.Split(',');
-                    foreach (string timeint in strNotifiers)
-                    {
-                        int numsecs = 0;
-                        string[] mands = timeint.Split('m');
-                        bool notifiersnos = int.TryParse(timeint, out numsecs);
-
-                        if (timeint.Contains("s") && !timeint.Contains("m"))
-                            numsecs = int.Parse(timeint.TrimEnd(toremove));
-                        else if (timeint.Contains("m") && !timeint.Contains("s"))
-                            numsecs = int.Parse(timeint.TrimEnd(toremove)) * 60;
-                        else if (timeint.Contains("m") && timeint.Contains("s"))
-                            numsecs = int.Parse(mands[1].TrimEnd(toremove)) + (int.Parse(mands[0].TrimEnd(toremove)) * 60);
-
-                        if (timeleft == numsecs)
-                        {
-                            if (shutdownreason != "")
-                                TShock.Utils.Broadcast(getConfig.ChatPrefix + " " + getmessage() + " (" + shutdownreason + ")", getConfig.ColorR, getConfig.ColorG, getConfig.ColorB);
-                            else
-                                TShock.Utils.Broadcast(getConfig.ChatPrefix + " " + getmessage(), getConfig.ColorR, getConfig.ColorG, getConfig.ColorB);
-                        }
-                    }
-                    timeleft = timeleft - 1;
-                    CountDown = DateTime.UtcNow;
-                    if (timeleft == 0)
-                    {
-                        if (shutdownreason == "")
-                        {
-                            TShock.Utils.ForceKickAll(getConfig.Shutdown_Message);
-                            WorldGen.saveWorld();
-                            Netplay.disconnect = true;
-                        }
-                        else
-                        {
-                            TShock.Utils.ForceKickAll(getConfig.Shutdown_Message + " (" + shutdownreason + ")");
-                            WorldGen.saveWorld();
-                            Netplay.disconnect = true;
-                        }
-                    }
-                }
-            }
-        }
-
-        public void OnLeave(int ply)
-        {
-            int plcount = 0;
-            foreach (TSPlayer pl in TShock.Players)
-            {
-                if (pl != null && pl.Active && pl.RealPlayer)
-                    plcount++;
-            }
-
-            if (plcount == 0)
-            {
-                TShock.Utils.ForceKickAll(getConfig.Shutdown_Message);
-                WorldGen.saveWorld();
-                Netplay.disconnect = true;
-            }
-        }
-
         public static void dstop(CommandArgs args)
         {
             if (args.Parameters.Count < 1)
             {
                 args.Player.SendMessage("Usage: /dstop <seconds> [reason] - Stops the server in <seconds> seconds", Color.Red);
-                args.Player.SendMessage("Usage: /dstop pause - Pauses the countdown", Color.Red);
-                args.Player.SendMessage("Usage: /dstop resume - Resumes the paused countdown", Color.Red);
-                args.Player.SendMessage("Usage: /dstop cancel - Cancels the delayed server shutdown", Color.Red);
-                args.Player.SendMessage("Usage: /dstop reload - reloads settings from config file", Color.Red);
+                args.Player.SendMessage("Usage: /dstop help - Shows more dstop commands", Color.Red);
                 return;
             }
 
@@ -314,7 +269,6 @@ namespace DelayedStop
                 if (shutdownpaused == true && shutdowninprogress == true)
                 {
                     shutdownpaused = false;
-                    CountDown = DateTime.UtcNow;
                     TShock.Utils.Broadcast(getConfig.ChatPrefix + " " + getConfig.ShutdownResumed_Message, getConfig.ColorR, getConfig.ColorG, getConfig.ColorB);
                 }
                 else
@@ -333,51 +287,40 @@ namespace DelayedStop
                     TShock.Utils.Broadcast(getConfig.ChatPrefix + " " + getConfig.ShutdownCancelled_Message, getConfig.ColorR, getConfig.ColorG, getConfig.ColorB);
                 }
                 else
-                {
                     args.Player.SendMessage("Error: No Delayed Shutdown in progress!", Color.Red);
-                }
+            }
+            else if (subcmd.ToLower() == "help")
+            {
+                args.Player.SendMessage("/dstop <seconds> [reason] - Stops the server in <seconds> seconds", Color.IndianRed);
+                args.Player.SendMessage("/dstop pause - Pauses the countdown", Color.IndianRed);
+                args.Player.SendMessage("/dstop resume - Resumes the paused countdown", Color.IndianRed);
+                args.Player.SendMessage("/dstop cancel - Cancels the delayed server shutdown", Color.IndianRed);
+                args.Player.SendMessage("/dstop reload - reloads settings from config file", Color.IndianRed);
             }
             else if (subcmdIsNum)
             {
-                int plcount = 0;
-                foreach (TSPlayer pl in TShock.Players)
+                if (shutdowninprogress == false && noconferr)
                 {
-                    if (pl != null && pl.Active && pl.RealPlayer)
-                        plcount++;
-                }
-
-                if (plcount == 0)
-                {
-                    TShock.Utils.ForceKickAll(getConfig.Shutdown_Message);
-                    WorldGen.saveWorld();
-                    Netplay.disconnect = true;
-                }
-                else
-                {
-                    if (shutdowninprogress == false && noconferr)
+                    if (args.Parameters.Count >= 2)
                     {
-                        if (args.Parameters.Count >= 2)
+                        foreach (string resonword in args.Parameters)
                         {
-                            foreach (string resonword in args.Parameters)
-                            {
-                                shutdownreason = shutdownreason + resonword + " ";
-                            }
-                            shutdownreason = shutdownreason.Remove(0, subcmd.Length + 1);
-                            shutdownreason = shutdownreason.Remove(shutdownreason.Length - 1);
+                            shutdownreason = shutdownreason + resonword + " ";
                         }
-                        whostarted = args;
-                        timeleft = timetillshutdown;
-                        shutdowninprogress = true;
+                        shutdownreason = shutdownreason.Remove(0, subcmd.Length + 1);
+                        shutdownreason = " (" + shutdownreason.Remove(shutdownreason.Length - 1) + ")";
                     }
-                    else if (!noconferr)
-                    {
-                        args.Player.SendMessage("Error: Cannot start because of error in config file!", Color.Red);
-                    }
-                    else
-                    {
-                        args.Player.SendMessage("Error: Delayed shutdown already in progress!", Color.Red);
-                    }
+                    whostarted = args;
+                    timeleft = timetillshutdown;
+                    shutdowninprogress = true;
+
+                    ds.Elapsed += new ElapsedEventHandler(ds_Elapsed);
+                    ds.Start();
                 }
+                else if (!noconferr)
+                    args.Player.SendMessage("Error: Cannot start because of error in config file!", Color.Red);
+                else
+                    args.Player.SendMessage("Error: Delayed shutdown already in progress!", Color.Red);
             }
             else if (subcmd.ToLower() == "reload")
             {
@@ -392,19 +335,16 @@ namespace DelayedStop
             }
             else if (subcmd.ToLower() == "info" || subcmd.ToLower() == "debug")
             {
-                args.Player.SendMessage("Shutdown in progress: " + shutdowninprogress, Color.Red);
-                args.Player.SendMessage("Shutdown Paused: " + shutdownpaused, Color.Red);
-                args.Player.SendMessage("Time left till shutdown: " + dispTimeLeft(), Color.Red);
-                args.Player.SendMessage("Reason for shutdown: " + shutdownreason, Color.Red);
-                args.Player.SendMessage("Notify At: " + getConfig.NotifyAt, Color.Red);
+                args.Player.SendMessage("Shutdown in progress: " + shutdowninprogress, Color.IndianRed);
+                args.Player.SendMessage("Shutdown Paused: " + shutdownpaused, Color.IndianRed);
+                args.Player.SendMessage("Time left till shutdown: " + dispTimeLeft(), Color.IndianRed);
+                args.Player.SendMessage("Reason for shutdown:" + shutdownreason, Color.IndianRed);
+                args.Player.SendMessage("Notify At: " + getConfig.NotifyAt, Color.IndianRed);
             }
             else
             {
                 args.Player.SendMessage("Usage: /dstop <seconds> [reason] - Stops the server in <seconds> seconds", Color.Red);
-                args.Player.SendMessage("Usage: /dstop pause - Pauses the countdown", Color.Red);
-                args.Player.SendMessage("Usage: /dstop resume - Resumes the paused countdown", Color.Red);
-                args.Player.SendMessage("Usage: /dstop cancel - Cancels the delayed server shutdown", Color.Red);
-                args.Player.SendMessage("Usage: /dstop reload - reloads settings from config file", Color.Red);
+                args.Player.SendMessage("Usage: /dstop help - Shows more dstop commands", Color.Red);
             }
         }
         public static void dinfo(CommandArgs args)
@@ -412,7 +352,7 @@ namespace DelayedStop
             args.Player.SendMessage("Shutdown in progress: " + shutdowninprogress, getConfig.ColorR, getConfig.ColorG, getConfig.ColorB);
             args.Player.SendMessage("Shutdown Paused: " + shutdownpaused, getConfig.ColorR, getConfig.ColorG, getConfig.ColorB);
             args.Player.SendMessage("Time left till shutdown: " + dispTimeLeft(), getConfig.ColorR, getConfig.ColorG, getConfig.ColorB);
-            args.Player.SendMessage("Reason for shutdown: " + shutdownreason, getConfig.ColorR, getConfig.ColorG, getConfig.ColorB);
+            args.Player.SendMessage("Reason for shutdown:" + shutdownreason, getConfig.ColorR, getConfig.ColorG, getConfig.ColorB);
         }
     }
 }
