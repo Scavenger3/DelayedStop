@@ -1,9 +1,0 @@
-C:\Users\42373\Documents\Programming\TShock Plugins\Delayed Stop\RELEASE\DelayedStop.dll
-C:\Users\42373\Documents\Programming\TShock Plugins\Delayed Stop\TShockPluginTemplate\obj\Release\ResolveAssemblyReference.cache
-C:\Users\42373\Documents\Programming\TShock Plugins\Delayed Stop\TShockPluginTemplate\obj\Release\DelayedStop.dll
-C:\Users\42373\Documents\Programming\TShock Plugins\Delayed Stop\1.1\RELEASE\DelayedStop.dll
-C:\Users\42373\Documents\Programming\TShock Plugins\Delayed Stop\1.1\TShockPluginTemplate\obj\Release\ResolveAssemblyReference.cache
-C:\Users\42373\Documents\Programming\TShock Plugins\Delayed Stop\1.1\TShockPluginTemplate\obj\Release\DelayedStop.dll
-C:\Users\42373\Documents\Programming\TShock Plugins\Delayed Stop\1.2\RELEASE\DelayedStop.dll
-C:\Users\42373\Documents\Programming\TShock Plugins\Delayed Stop\1.2\TShockPluginTemplate\obj\Release\ResolveAssemblyReference.cache
-C:\Users\42373\Documents\Programming\TShock Plugins\Delayed Stop\1.2\TShockPluginTemplate\obj\Release\DelayedStop.dll
