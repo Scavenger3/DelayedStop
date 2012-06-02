@@ -50,13 +50,17 @@ namespace DelayedStop
 		{
 			GameHooks.Initialize += OnInitialize;
 			GameHooks.Update += OnUpdate;
+			ServerHooks.Leave += OnLeave;
 		}
 
 		protected override void Dispose(bool disposing)
 		{
 			if (disposing)
+			{
 				GameHooks.Initialize -= OnInitialize;
-			GameHooks.Update -= OnUpdate;
+				GameHooks.Update -= OnUpdate;
+				ServerHooks.Leave -= OnLeave;
+			}
 			base.Dispose(disposing);
 		}
 
@@ -241,9 +245,7 @@ namespace DelayedStop
 					}
 					timeleft--;
 					if (timeleft == 0)
-					{
 						TShock.Utils.StopServer(true, getConfig.Shutdown_Message + shutdownreason);
-					}
 				}
 			}
 		}
@@ -257,6 +259,34 @@ namespace DelayedStop
 			Commands.ChatCommands.Add(new Command("dsinfo", dinfo, "dinfo"));
 		}
 
+		public void OnLeave(int who)
+		{
+			if (shutdowninprogress && !shutdownpaused)
+			{
+				CheckOnline();
+			}
+		}
+
+		public static void CheckOnline()
+		{
+			bool last = true;
+
+			foreach (var Player in TShock.Players)
+			{
+				if (Player != null && Player.Active)
+				{
+					last = false;
+					break;
+				}
+			}
+
+			if (last)
+			{
+				Log.ConsoleInfo("[Delayed Stop] A delayed stop is in progress and no one is on the server!");
+				Log.ConsoleInfo("[Delayed Stop] Server will now shutdown!");
+				TShock.Utils.StopServer(true, getConfig.Shutdown_Message + shutdownreason);
+			}
+		}
 		public static void dstop(CommandArgs args)
 		{
 			if (args.Parameters.Count < 1)
@@ -334,6 +364,8 @@ namespace DelayedStop
 					shutdowninprogress = true;
 
 					args.Player.SendMessage("Delayed stop has been started!", Color.MediumSeaGreen);
+
+					CheckOnline(); /* incase the Console sends this command */
 				}
 				else if (!noconferr)
 					args.Player.SendMessage("Error: Cannot start because of error in config file!", Color.Red);
