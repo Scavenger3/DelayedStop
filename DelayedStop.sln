@@ -1,6 +1,6 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 11.00
-# Visual Studio 2010
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DelayedStop", "DelayedStop\DelayedStop.csproj", "{85F20ADC-C2D1-416D-B7FF-9433C75A8F01}"
 EndProject
 Global
